@@ -211,12 +211,15 @@ one coherent platform instead of five apps bolted together.
 
 - **Backend:** Postgres (Supabase is fine to start — you already have it connected),
   encrypted columns / row-level security for the data vault.
-- **AI:** Claude API for the companion (memory via retrieval over user's own encrypted
-  store, not fine-tuning per-user — cheaper and more private).
+- **AI:** Sarvam AI (OpenAI-compatible chat completions API, sarvam-30b/105b) for the
+  companion — memory via retrieval over the user's own encrypted store, not
+  fine-tuning per-user. Chosen over Anthropic/OpenAI for this build; the integration
+  is behind one module (`src/lib/sarvam.ts`) so swapping providers later is a
+  contained change, not a rewrite.
 - **Wallet:** Don't build custody. Use WalletConnect / account abstraction (ERC-4337)
   so users hold keys; you never become a money-service business by accident.
-- **Agent runtime (Pillar E):** Claude with tool use / MCP-style tool definitions for
-  web search, calendar, and device actions; the VPS runs a lightweight always-on agent
+- **Agent runtime (Pillar E):** Sarvam's OpenAI-style tool-calling for web search,
+  calendar, and device actions; the VPS runs a lightweight always-on agent
   process, phone/laptop connectors expose a narrow, explicit tool surface (not general
   shell/OS access) that the agent calls through the same permission engine as Pillar B.
 - **Integrations:** standard OAuth connectors per service (Gmail API, Notion API,
@@ -317,8 +320,8 @@ where it has to (AI inference, and eventually hosting at real scale).
 | Desktop shell | Tauri | Free, open-source, one codebase → Mac + Windows |
 | Mobile shell | React Native + Expo | Free, open-source, one codebase → iOS + Android |
 | Backend/DB/Auth | Supabase | Generous free tier, open-source core, already connected |
-| AI / agent brain | Claude API | Pay-per-use — the one place cost is unavoidable, since this is the "smart" core |
-| Agent tool orchestration | Claude tool use / MCP | Free framework/spec for wiring tools to the agent |
+| AI / agent brain | Sarvam AI (sarvam-30b/105b) | Pay-per-use, OpenAI-compatible API, strong Indic-language support |
+| Agent tool orchestration | OpenAI-style tool calling (Sarvam supports it natively) | Free framework/spec for wiring tools to the agent |
 | Workflow automation (optional) | n8n | Free/open-source, useful for wiring integrations visually before custom code exists |
 | Wallet | WalletConnect SDK + viem/ethers.js | Free, open-source, non-custodial by design |
 | VPS for agent runtime | Railway (already connected) or Hetzner | Free/low-cost tiers, pay only as usage grows |
@@ -332,8 +335,8 @@ where it has to (AI inference, and eventually hosting at real scale).
 | Error monitoring | Sentry | Free tier |
 
 Bottom line: nearly the entire stack costs $0 until you have real usage — the only
-line item that scales with users from day one is Claude API calls, which is
-unavoidable since that's the actual intelligence layer.
+line item that scales with users from day one is AI inference (Sarvam API calls),
+which is unavoidable since that's the actual intelligence layer.
 
 ---
 

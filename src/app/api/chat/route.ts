@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { anthropic, buildSystemPrompt, CHAT_MODEL, MEMORY_TOOL } from "@/lib/anthropic";
-import type Anthropic from "@anthropic-ai/sdk";
+import { getSarvamClient, buildSystemPrompt, CHAT_MODEL, MEMORY_TOOL } from "@/lib/sarvam";
+import type OpenAI from "openai";
 
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -53,7 +53,8 @@ export async function POST(request: Request) {
     (memories ?? []).map((m) => m.content),
   );
 
-  const messages: Anthropic.MessageParam[] = [
+  const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
+    { role: "system", content: system },
     ...(history ?? []).map((m) => ({
       role: m.role as "user" | "assistant",
       content: m.content as string,
@@ -61,22 +62,24 @@ export async function POST(request: Request) {
     { role: "user", content: message },
   ];
 
-  const response = await anthropic.messages.create({
+  const completion = await getSarvamClient().chat.completions.create({
     model: CHAT_MODEL,
-    max_tokens: 1024,
-    system,
-    tools: [MEMORY_TOOL],
     messages,
+    tools: [MEMORY_TOOL],
   });
 
-  let replyText = "";
+  const choice = completion.choices[0]?.message;
+  let replyText = choice?.content ?? "";
   const savedFacts: string[] = [];
 
-  for (const block of response.content) {
-    if (block.type === "text") {
-      replyText += block.text;
-    } else if (block.type === "tool_use" && block.name === "save_memory") {
-      const fact = (block.input as { fact?: string }).fact;
+  for (const toolCall of choice?.tool_calls ?? []) {
+    if (toolCall.type === "function" && toolCall.function.name === "save_memory") {
+      let fact: string | undefined;
+      try {
+        fact = JSON.parse(toolCall.function.arguments).fact;
+      } catch {
+        // malformed tool call arguments — skip
+      }
       if (fact) {
         await supabase.from("memories").insert({ user_id: user.id, content: fact, source: "conversation" });
         await supabase.from("audit_log").insert({
