@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { VOICE_SPEAKERS, DEFAULT_VOICE_SPEAKER } from "@/lib/sarvam";
 
 const PERSONAS = [
   { value: "friend", label: "Friend", blurb: "Casual, warm, talks like someone who knows you." },
@@ -14,7 +15,27 @@ export default function OnboardingPage() {
   const router = useRouter();
   const [name, setName] = useState("Nova");
   const [persona, setPersona] = useState<(typeof PERSONAS)[number]["value"]>("assistant");
+  const [voiceSpeaker, setVoiceSpeaker] = useState<string>(DEFAULT_VOICE_SPEAKER);
+  const [previewingVoice, setPreviewingVoice] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+
+  async function handlePreviewVoice(speaker: string) {
+    setPreviewingVoice(speaker);
+    try {
+      const res = await fetch("/api/voice/speak", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: `Hi, I'm ${name.trim() || "Nova"}. This is what I sound like.`, speaker }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        const audio = new Audio(`data:audio/wav;base64,${data.audio}`);
+        await audio.play();
+      }
+    } finally {
+      setPreviewingVoice(null);
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -29,6 +50,7 @@ export default function OnboardingPage() {
       user_id: user.id,
       agent_name: name.trim() || "Nova",
       persona,
+      voice_speaker: voiceSpeaker,
     });
 
     router.push("/");
@@ -36,11 +58,11 @@ export default function OnboardingPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-neutral-950 px-4">
+    <main className="flex min-h-screen items-center justify-center bg-neutral-950 px-4 py-12">
       <form onSubmit={handleSubmit} className="w-full max-w-md space-y-6">
         <div className="space-y-1 text-center">
           <h1 className="text-2xl font-semibold text-neutral-50">Set up your companion</h1>
-          <p className="text-sm text-neutral-400">Name it and pick how it should show up. Change this anytime.</p>
+          <p className="text-sm text-neutral-400">Name it, pick how it shows up, and how it sounds. Change this anytime.</p>
         </div>
 
         <div className="space-y-2">
@@ -69,6 +91,37 @@ export default function OnboardingPage() {
               >
                 <div className="text-sm font-medium text-neutral-50">{p.label}</div>
                 <div className="text-xs text-neutral-400">{p.blurb}</div>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-neutral-300">Voice</label>
+          <div className="grid grid-cols-2 gap-2">
+            {VOICE_SPEAKERS.map((v) => (
+              <button
+                type="button"
+                key={v.id}
+                onClick={() => setVoiceSpeaker(v.id)}
+                className={`flex items-center justify-between rounded-lg border px-3 py-2.5 text-left text-sm transition ${
+                  voiceSpeaker === v.id
+                    ? "border-neutral-100 bg-neutral-900 text-neutral-50"
+                    : "border-neutral-800 bg-neutral-950 text-neutral-300 hover:border-neutral-700"
+                }`}
+              >
+                <span>{v.label}</span>
+                <span
+                  role="button"
+                  tabIndex={0}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handlePreviewVoice(v.id);
+                  }}
+                  className="text-xs text-neutral-500 hover:text-neutral-200"
+                >
+                  {previewingVoice === v.id ? "..." : "▶ play"}
+                </span>
               </button>
             ))}
           </div>

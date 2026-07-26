@@ -76,3 +76,73 @@ export const MEMORY_TOOL: OpenAI.Chat.Completions.ChatCompletionTool = {
     },
   },
 };
+
+// --- Voice (Bulbul TTS / Saarika STT) ---
+// These are Sarvam's native REST endpoints, not the OpenAI-compatible /v1
+// surface — different base URL and auth header (api-subscription-key).
+const SARVAM_BASE_URL = "https://api.sarvam.ai";
+
+function sarvamAuthHeaders() {
+  return { "api-subscription-key": process.env.SARVAM_API_KEY || "unset" };
+}
+
+// A curated subset of Bulbul v3's 30+ speakers — enough real choice without
+// overwhelming onboarding. Full list is in Sarvam's docs if this is expanded later.
+export const VOICE_SPEAKERS = [
+  { id: "shubh", label: "Shubh (male)" },
+  { id: "aditya", label: "Aditya (male)" },
+  { id: "rahul", label: "Rahul (male)" },
+  { id: "ritu", label: "Ritu (female)" },
+  { id: "priya", label: "Priya (female)" },
+  { id: "simran", label: "Simran (female)" },
+] as const;
+
+export const DEFAULT_VOICE_SPEAKER = "shubh";
+
+/**
+ * Synthesize speech for a line of text. Returns base64-encoded WAV audio.
+ * Indian-accented English by default (en-IN); pass a different code for
+ * Indic-language replies.
+ */
+export async function synthesizeSpeech(
+  text: string,
+  speaker: string = DEFAULT_VOICE_SPEAKER,
+  targetLanguageCode: string = "en-IN",
+): Promise<string> {
+  const res = await fetch(`${SARVAM_BASE_URL}/text-to-speech`, {
+    method: "POST",
+    headers: { ...sarvamAuthHeaders(), "Content-Type": "application/json" },
+    // Bulbul caps ~2500 chars per REST call; truncate defensively.
+    body: JSON.stringify({ text: text.slice(0, 2500), target_language_code: targetLanguageCode, speaker }),
+  });
+
+  if (!res.ok) {
+    throw new Error(`Sarvam TTS failed: ${res.status} ${await res.text()}`);
+  }
+
+  const data = (await res.json()) as { audios: string[] };
+  return data.audios[0];
+}
+
+/**
+ * Transcribe recorded audio (webm/wav/mp3/etc — Sarvam's REST STT
+ * auto-detects most common formats) to text.
+ */
+export async function transcribeAudio(audio: Blob, filename: string): Promise<string> {
+  const form = new FormData();
+  form.append("file", audio, filename);
+  form.append("model", "saarika:v2.5");
+
+  const res = await fetch(`${SARVAM_BASE_URL}/speech-to-text`, {
+    method: "POST",
+    headers: sarvamAuthHeaders(),
+    body: form,
+  });
+
+  if (!res.ok) {
+    throw new Error(`Sarvam STT failed: ${res.status} ${await res.text()}`);
+  }
+
+  const data = (await res.json()) as { transcript: string };
+  return data.transcript;
+}
