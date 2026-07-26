@@ -3,6 +3,16 @@
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import {
+  Microphone,
+  Stop,
+  ArrowUp,
+  SpeakerHigh,
+  SpeakerSlash,
+  Play,
+  SlidersHorizontal,
+  SignOut,
+} from "@phosphor-icons/react/dist/ssr";
 
 type Message = { role: "user" | "assistant"; content: string };
 
@@ -34,7 +44,7 @@ export default function ChatView({ agentName, persona }: { agentName: string; pe
         new Audio(`data:audio/wav;base64,${data.audio}`).play();
       }
     } catch {
-      // voice playback is best-effort — don't block the chat on TTS failures
+      // voice playback is best-effort, don't block the chat on TTS failures
     }
   }
 
@@ -115,25 +125,40 @@ export default function ChatView({ agentName, persona }: { agentName: string; pe
   }
 
   return (
-    <main className="flex min-h-screen flex-col bg-neutral-950">
-      <header className="flex items-center justify-between border-b border-neutral-900 px-6 py-4">
-        <div>
-          <div className="text-sm font-medium text-neutral-50">{agentName}</div>
-          <div className="text-xs text-neutral-500 capitalize">{persona} mode</div>
+    <main className="flex min-h-[100dvh] flex-col bg-bg">
+      <header className="flex h-16 items-center justify-between border-b border-border px-6">
+        <div className="flex items-center gap-3">
+          <div className="flex h-8 w-8 items-center justify-center rounded-[var(--radius-sm)] bg-accent text-sm font-semibold text-accent-contrast">
+            {agentName.charAt(0).toUpperCase()}
+          </div>
+          <div>
+            <div className="text-sm font-medium text-text-primary">{agentName}</div>
+            <div className="text-xs capitalize text-text-tertiary">{persona} mode</div>
+          </div>
         </div>
-        <div className="flex items-center gap-4 text-sm">
+        <div className="flex items-center gap-1">
           <button
             onClick={() => setVoiceReplies((v) => !v)}
-            className={`text-xs ${voiceReplies ? "text-emerald-400" : "text-neutral-500"} hover:text-neutral-100`}
+            className={`flex h-9 w-9 items-center justify-center rounded-[var(--radius-sm)] transition hover:bg-bg-elevated ${
+              voiceReplies ? "text-accent" : "text-text-tertiary"
+            }`}
             title="Toggle voice replies"
           >
-            {voiceReplies ? "🔊 Voice on" : "🔇 Voice off"}
+            {voiceReplies ? <SpeakerHigh size={18} /> : <SpeakerSlash size={18} />}
           </button>
-          <Link href="/dashboard" className="text-neutral-400 hover:text-neutral-100">
-            Data dashboard
+          <Link
+            href="/dashboard"
+            className="flex h-9 w-9 items-center justify-center rounded-[var(--radius-sm)] text-text-tertiary transition hover:bg-bg-elevated hover:text-text-primary"
+            title="Data dashboard"
+          >
+            <SlidersHorizontal size={18} />
           </Link>
-          <button onClick={handleSignOut} className="text-neutral-400 hover:text-neutral-100">
-            Sign out
+          <button
+            onClick={handleSignOut}
+            className="flex h-9 w-9 items-center justify-center rounded-[var(--radius-sm)] text-text-tertiary transition hover:bg-bg-elevated hover:text-text-primary"
+            title="Sign out"
+          >
+            <SignOut size={18} />
           </button>
         </div>
       </header>
@@ -141,62 +166,70 @@ export default function ChatView({ agentName, persona }: { agentName: string; pe
       <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col px-4">
         <div className="flex-1 space-y-4 overflow-y-auto py-6">
           {messages.length === 0 && (
-            <p className="pt-16 text-center text-sm text-neutral-500">
-              Say hi to {agentName} — by text or by holding the mic.
-            </p>
+            <div className="flex flex-col items-center gap-2 pt-20 text-center">
+              <div className="flex h-12 w-12 items-center justify-center rounded-[var(--radius-md)] bg-accent-soft text-lg font-semibold text-accent">
+                {agentName.charAt(0).toUpperCase()}
+              </div>
+              <p className="text-sm text-text-tertiary">Say hi to {agentName}, by text or by the mic.</p>
+            </div>
           )}
           {messages.map((m, i) => (
             <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
               <div
-                className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm ${
+                className={`group relative max-w-[80%] px-4 py-2.5 text-sm leading-relaxed ${
                   m.role === "user"
-                    ? "bg-neutral-50 text-neutral-950"
-                    : "bg-neutral-900 text-neutral-100"
+                    ? "rounded-[var(--radius-lg)] rounded-br-[6px] bg-accent text-accent-contrast"
+                    : "rounded-[var(--radius-lg)] rounded-bl-[6px] bg-bg-elevated text-text-primary"
                 }`}
               >
                 {m.content}
                 {m.role === "assistant" && (
                   <button
                     onClick={() => playReply(m.content)}
-                    className="ml-2 align-middle text-xs text-neutral-500 hover:text-neutral-200"
+                    className="ml-1.5 inline-flex align-middle text-text-tertiary opacity-0 transition group-hover:opacity-100 hover:text-text-primary"
                     title="Play"
                   >
-                    ▶
+                    <Play size={13} weight="fill" />
                   </button>
                 )}
               </div>
             </div>
           ))}
-          {sending && <div className="text-sm text-neutral-500">{agentName} is typing...</div>}
-          {transcribing && <div className="text-sm text-neutral-500">Transcribing...</div>}
+          {sending && (
+            <div className="flex items-center gap-1.5 text-xs text-text-tertiary">
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-text-tertiary" />
+              {agentName} is typing
+            </div>
+          )}
+          {transcribing && <div className="text-xs text-text-tertiary">Transcribing...</div>}
           <div ref={bottomRef} />
         </div>
 
-        <form onSubmit={handleSend} className="flex gap-2 border-t border-neutral-900 py-4">
+        <form onSubmit={handleSend} className="flex items-end gap-2 border-t border-border py-4">
           <button
             type="button"
             onClick={handleMicClick}
-            className={`rounded-lg border px-3 py-2.5 text-sm transition ${
+            className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-[var(--radius-pill)] border transition active:scale-[0.96] ${
               recording
-                ? "border-red-500 bg-red-500/10 text-red-400"
-                : "border-neutral-800 text-neutral-300 hover:border-neutral-600"
+                ? "border-danger bg-danger-soft text-danger"
+                : "border-border text-text-secondary hover:border-border-strong"
             }`}
             title={recording ? "Stop recording" : "Record a voice message"}
           >
-            {recording ? "■" : "🎤"}
+            {recording ? <Stop size={17} weight="fill" /> : <Microphone size={18} />}
           </button>
           <input
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder={`Message ${agentName}...`}
-            className="flex-1 rounded-lg border border-neutral-800 bg-neutral-900 px-4 py-2.5 text-sm text-neutral-50 outline-none focus:border-neutral-600"
+            className="h-11 flex-1 rounded-[var(--radius-pill)] border border-border bg-bg-elevated px-4 text-sm text-text-primary outline-none placeholder:text-text-tertiary focus:border-border-strong"
           />
           <button
             type="submit"
-            disabled={sending}
-            className="rounded-lg bg-neutral-50 px-4 py-2.5 text-sm font-medium text-neutral-950 hover:bg-neutral-200 disabled:opacity-50"
+            disabled={sending || !input.trim()}
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[var(--radius-pill)] bg-accent text-accent-contrast transition active:scale-[0.96] disabled:opacity-40"
           >
-            Send
+            <ArrowUp size={18} weight="bold" />
           </button>
         </form>
       </div>
