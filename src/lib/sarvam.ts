@@ -16,7 +16,29 @@ export function getSarvamClient() {
   return client;
 }
 
-export const CHAT_MODEL = "sarvam-30b";
+// Sarvam currently ships two production chat models:
+// - sarvam-30b  (64K context)  — balanced cost/latency, default for everyday chat
+// - sarvam-105b (128K context) — flagship, better reasoning/coding, higher cost
+// Both are reasoning models (they emit hidden chain-of-thought as
+// `reasoning_content`, separate from the visible `content`), so cost/latency
+// scales with task complexity regardless of tier — pick the tier to match.
+export const CHAT_MODEL_LIGHT = "sarvam-30b";
+export const CHAT_MODEL_HEAVY = "sarvam-105b";
+
+const HEAVY_TASK_PATTERN =
+  /\b(build|code|develop|analyz|research|plan|architect|debug|refactor|write a|generate a|design a)\b/i;
+
+/**
+ * Auto-route to the model tier that fits the request: short/casual messages
+ * stay on the cheaper 30b, longer or clearly complex asks (build/research/
+ * analysis-shaped requests) escalate to 105b.
+ */
+export function selectModel(message: string): string {
+  if (message.length > 600 || HEAVY_TASK_PATTERN.test(message)) {
+    return CHAT_MODEL_HEAVY;
+  }
+  return CHAT_MODEL_LIGHT;
+}
 
 const PERSONA_PROMPTS: Record<string, string> = {
   friend: "You are a warm, casual friend. Talk like someone who knows the user well — relaxed, honest, no corporate tone.",

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { getSarvamClient, buildSystemPrompt, CHAT_MODEL, MEMORY_TOOL } from "@/lib/sarvam";
+import { getSarvamClient, buildSystemPrompt, selectModel, MEMORY_TOOL } from "@/lib/sarvam";
 import type OpenAI from "openai";
 
 export async function POST(request: Request) {
@@ -62,8 +62,10 @@ export async function POST(request: Request) {
     { role: "user", content: message },
   ];
 
+  const model = selectModel(message);
+
   const completion = await getSarvamClient().chat.completions.create({
-    model: CHAT_MODEL,
+    model,
     messages,
     tools: [MEMORY_TOOL],
   });
@@ -105,5 +107,5 @@ export async function POST(request: Request) {
     content: replyText,
   });
 
-  return NextResponse.json({ conversationId: convoId, reply: replyText, savedFacts });
+  return NextResponse.json({ conversationId: convoId, reply: replyText, savedFacts, model });
 }
